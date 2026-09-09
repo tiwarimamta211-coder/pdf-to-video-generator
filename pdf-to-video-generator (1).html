@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF to Video Generator | IncomeAIHub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{
+    --bg:#05060a;
+    --bg2:#0a0e18;
+    --panel:#0d121f;
+    --cyan:#00f6ff;
+    --purple:#b34bff;
+    --green:#39ff9d;
+    --pink:#ff2fd6;
+    --text:#dfe9f5;
+    --muted:#7f8ba3;
+    --border:rgba(0,246,255,0.18);
+    --danger:#ff4d6d;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 15% 10%, rgba(179,75,255,0.12), transparent 40%),
+      radial-gradient(circle at 85% 85%, rgba(0,246,255,0.10), transparent 45%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Rajdhani',sans-serif;
+    min-height:100vh;
+    position:relative;
+    overflow-x:hidden;
+  }
+  body::before{
+    content:"";
+    position:fixed;inset:0;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.02) 0px,
+      rgba(255,255,255,0.02) 1px,
+      transparent 2px,
+      transparent 4px
+    );
+    pointer-events:none;
+    z-index:9999;
+    mix-blend-mode:overlay;
+  }
+  h1,h2,h3,.brand{font-family:'Orbitron',sans-serif;}
+  .mono{font-family:'Share Tech Mono',monospace;}
+  a{color:var(--cyan);}
+
+  /* Layout */
+  .wrap{max-width:1200px;margin:0 auto;padding:20px 18px 60px;}
+  header.top{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 0 22px;border-bottom:1px solid var(--border);
+    margin-bottom:28px;flex-wrap:wrap;gap:10px;
+  }
+  .brand{
+    font-size:1.3rem;font-weight:900;letter-spacing:1px;
+    background:linear-gradient(90deg,var(--cyan),var(--purple));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .brand span{color:var(--green);-webkit-text-fill-color:var(--green);}
+  .tagline{color:var(--muted);font-size:0.85rem;}
+
+  .hero{text-align:center;margin-bottom:32px;}
+  .hero h1{
+    font-size:clamp(1.5rem,4vw,2.4rem);
+    margin:0 0 10px;
+    color:var(--text);
+    text-shadow:0 0 18px rgba(0,246,255,0.35);
+  }
+  .hero h1 em{
+    font-style:normal;
+    background:linear-gradient(90deg,var(--cyan),var(--green));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .hero p{color:var(--muted);max-width:640px;margin:0 auto;font-size:1rem;}
+
+  .grid{
+    display:grid;
+    grid-template-columns:1.1fr 1fr;
+    gap:22px;
+  }
+  @media (max-width:900px){
+    .grid{grid-template-columns:1fr;}
+  }
+
+  .panel{
+    background:linear-gradient(180deg, rgba(13,18,31,0.9), rgba(10,14,24,0.9));
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:20px;
+    position:relative;
+    box-shadow:0 0 0 1px rgba(255,255,255,0.02), 0 20px 40px -20px rgba(0,0,0,0.6);
+  }
+  .panel::before{
+    content:"";position:absolute;inset:-1px;border-radius:14px;
+    padding:1px;
+    background:linear-gradient(135deg, rgba(0,246,255,0.35), rgba(179,75,255,0.15), transparent 60%);
+    -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;mask-composite:exclude;
+    pointer-events:none;
+  }
+  .panel h2{
+    font-size:1rem;color:var(--cyan);margin:0 0 14px;
+    display:flex;align-items:center;gap:8px;letter-spacing:0.5px;
+  }
+  .panel h2 .num{
+    width:22px;height:22px;border-radius:6px;
+    background:rgba(0,246,255,0.12);border:1px solid var(--cyan);
+    display:flex;align-items:center;justify-content:center;
+    font-size:0.75rem;color:var(--cyan);
+  }
+
+  /* Dropzone */
+  .dropzone{
+    border:2px dashed rgba(0,246,255,0.35);
+    border-radius:12px;
+    padding:30px 16px;
+    text-align:center;
+    cursor:pointer;
+    transition:.2s;
+    background:rgba(0,246,255,0.03);
+  }
+  .dropzone:hover, .dropzone.drag{
+    border-color:var(--green);
+    background:rgba(57,255,157,0.05);
+  }
+  .dropzone .icon{font-size:2.2rem;display:block;margin-bottom:8px;}
+  .dropzone strong{color:var(--text);}
+  .dropzone small{display:block;color:var(--muted);margin-top:6px;}
+  input[type=file]{display:none;}
+
+  .filemeta{
+    margin-top:14px;padding:10px 12px;border-radius:8px;
+    background:rgba(255,255,255,0.03);border:1px solid var(--border);
+    font-size:0.85rem;color:var(--muted);display:none;
+  }
+  .filemeta.show{display:block;}
+  .filemeta b{color:var(--green);}
+
+  /* Controls */
+  .field{margin-bottom:16px;}
+  .field label{
+    display:block;font-size:0.82rem;color:var(--muted);
+    margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;
+  }
+  .field label b{color:var(--cyan);font-weight:600;}
+  select, input[type=text], input[type=number], input[type=range]{
+    width:100%;background:var(--bg2);color:var(--text);
+    border:1px solid var(--border);border-radius:8px;
+    padding:10px 12px;font-family:'Rajdhani',sans-serif;font-size:0.95rem;
+  }
+  select:focus, input:focus{outline:none;border-color:var(--cyan);}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  @media (max-width:520px){.row3{grid-template-columns:1fr 1fr;}}
+
+  .chip-group{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{
+    padding:8px 14px;border-radius:20px;border:1px solid var(--border);
+    background:var(--bg2);color:var(--muted);cursor:pointer;font-size:0.82rem;
+    transition:.15s;user-select:none;
+  }
+  .chip.active{
+    color:#03151a;background:linear-gradient(90deg,var(--cyan),var(--green));
+    border-color:transparent;font-weight:600;
+  }
+
+  .range-value{
+    display:flex;justify-content:space-between;color:var(--muted);font-size:0.78rem;margin-top:4px;
+  }
+  .range-value span{color:var(--green);font-family:'Share Tech Mono',monospace;}
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    padding:12px 20px;border-radius:10px;border:none;cursor:pointer;
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:0.95rem;
+    letter-spacing:0.5px;transition:.15s;width:100%;
+  }
+  .btn-primary{
+    background:linear-gradient(90deg,var(--cyan),var(--purple));
+    color:#04060c;box-shadow:0 8px 24px -8px rgba(0,246,255,0.5);
+  }
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 12px 30px -8px rgba(0,246,255,0.65);}
+  .btn-primary:disabled{opacity:0.4;cursor:not-allowed;transform:none;box-shadow:none;}
+  .btn-secondary{
+    background:transparent;border:1px solid var(--border);color:var(--text);
+  }
+  .btn-secondary:hover{border-color:var(--cyan);color:var(--cyan);}
+  .btn-danger{background:rgba(255,77,109,0.12);border:1px solid var(--danger);color:var(--danger);}
+
+  .btns-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;}
+  .btns-row .btn{width:auto;flex:1;min-width:140px;}
+
+  /* Preview */
+  .preview-stage{
+    background:#000;border-radius:12px;overflow:hidden;
+    position:relative;border:1px solid var(--border);
+    display:flex;align-items:center;justify-content:center;
+    aspect-ratio:16/9;
+  }
+  .preview-stage.ratio-9-16{aspect-ratio:9/16;max-width:280px;margin:0 auto;}
+  .preview-stage.ratio-1-1{aspect-ratio:1/1;max-width:420px;margin:0 auto;}
+  #previewCanvas{width:100%;height:100%;display:block;background:#000;}
+  .caption-overlay{
+    position:absolute;left:0;right:0;bottom:0;
+    padding:14px 16px;
+    background:linear-gradient(0deg, rgba(0,0,0,0.75), transparent);
+    font-family:'Rajdhani',sans-serif;font-size:0.95rem;color:#fff;
+    text-align:center;max-height:45%;overflow:hidden;
+  }
+  .watermark-tag{
+    position:absolute;top:10px;right:12px;
+    font-family:'Orbitron',sans-serif;font-size:0.7rem;
+    color:rgba(255,255,255,0.75);
+    background:rgba(0,0,0,0.35);padding:4px 10px;border-radius:6px;
+    letter-spacing:1px;
+  }
+  .stage-empty{
+    color:var(--muted);text-align:center;padding:20px;font-size:0.9rem;
+  }
+
+  .progress-wrap{margin-top:14px;display:none;}
+  .progress-wrap.show{display:block;}
+  .progress-bar{
+    width:100%;height:10px;border-radius:6px;background:var(--bg2);
+    border:1px solid var(--border);overflow:hidden;
+  }
+  .progress-bar > div{
+    height:100%;width:0%;
+    background:linear-gradient(90deg,var(--cyan),var(--green));
+    transition:width .2s;
+  }
+  .progress-label{
+    display:flex;justify-content:space-between;font-size:0.78rem;
+    color:var(--muted);margin-top:6px;font-family:'Share Tech Mono',monospace;
+  }
+
+  .thumbs{
+    display:flex;gap:8px;overflow-x:auto;margin-top:14px;padding-bottom:6px;
+  }
+  .thumbs img{
+    height:64px;border-radius:6px;border:2px solid transparent;cursor:pointer;
+    flex-shrink:0;
+  }
+  .thumbs img.active{border-color:var(--cyan);}
+
+  .playback-controls{
+    display:flex;align-items:center;gap:10px;margin-top:12px;
+  }
+  .playback-controls button{
+    background:var(--bg2);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;width:38px;height:38px;cursor:pointer;font-size:1rem;
+  }
+  .playback-controls button:hover{border-color:var(--cyan);color:var(--cyan);}
+
+  /* Guide */
+  .guide{
+    margin-top:30px;
+  }
+  .guide-box{
+    background:linear-gradient(180deg, rgba(179,75,255,0.06), rgba(13,18,31,0.9));
+    border:1px solid rgba(179,75,255,0.3);
+    border-radius:14px;padding:22px;
+  }
+  .guide-box h2{color:var(--purple);font-size:1.05rem;margin-top:0;}
+  .guide-box h3{color:var(--green);font-size:0.95rem;margin:16px 0 6px;}
+  .guide-box p, .guide-box li{color:var(--text);font-size:0.92rem;line-height:1.6;}
+  .guide-box ul{padding-left:20px;margin:6px 0;}
+  .guide-note{
+    margin-top:14px;padding:12px 14px;border-radius:8px;
+    background:rgba(255,206,0,0.08);border:1px solid rgba(255,206,0,0.35);
+    font-size:0.85rem;color:#ffd968;
+  }
+
+  .adslot{
+    margin:34px 0;padding:14px;text-align:center;
+    border:1px dashed var(--border);border-radius:10px;
+    color:var(--muted);font-size:0.75rem;letter-spacing:1px;
+    text-transform:uppercase;
+  }
+
+  footer{
+    text-align:center;color:var(--muted);font-size:0.8rem;margin-top:40px;
+    padding-top:18px;border-top:1px solid var(--border);
+  }
+  footer .brand{font-size:1rem;}
+
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--panel);border:1px solid var(--cyan);color:var(--text);
+    padding:12px 20px;border-radius:10px;font-size:0.85rem;
+    opacity:0;transition:.25s;pointer-events:none;z-index:10000;
+    box-shadow:0 10px 30px rgba(0,0,0,0.5);
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.error{border-color:var(--danger);}
+
+  ::-webkit-scrollbar{height:8px;width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <div class="brand">INCOME<span>AI</span>HUB</div>
+      <div class="tagline">Free AI tools for Indian creators & freelancers</div>
+    </div>
+    <div class="tagline mono">100% Browser-based · No upload to server</div>
+  </header>
+
+  <div class="hero">
+    <h1>PDF to <em>Video</em> Generator</h1>
+    <p>Turn any PDF — notes, slides, e-books, reports — into a downloadable slideshow video with transitions, captions, background music and on-screen narration text. Perfect for YouTube Shorts, Reels, and course content.</p>
+  </div>
+
+  <div class="grid">
+
+    <!-- LEFT: Upload + Settings -->
+    <div class="panel">
+      <h2><span class="num">1</span> Upload & Configure</h2>
+
+      <div class="dropzone" id="dropzone">
+        <span class="icon">📄</span>
+        <strong>Click or drag a PDF here</strong>
+        <small>Max ~40 pages recommended for smooth in-browser rendering</small>
+        <input type="file" id="pdfInput" accept="application/pdf">
+      </div>
+      <div class="filemeta" id="fileMeta"></div>
+
+      <div class="field" style="margin-top:18px;">
+        <label>Aspect Ratio</label>
+        <div class="chip-group" id="ratioChips">
+          <div class="chip active" data-ratio="16:9">16:9 · YouTube</div>
+          <div class="chip" data-ratio="9:16">9:16 · Shorts/Reels</div>
+          <div class="chip" data-ratio="1:1">1:1 · Instagram</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Transition Style</label>
+        <div class="chip-group" id="transChips">
+          <div class="chip active" data-trans="fade">Fade</div>
+          <div class="chip" data-trans="slide">Slide</div>
+          <div class="chip" data-trans="zoom">Ken Burns Zoom</div>
+          <div class="chip" data-trans="none">None (Cut)</div>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Seconds per Slide: <span id="durVal" class="mono" style="color:var(--green)">4s</span></label>
+          <input type="range" id="durRange" min="1" max="15" step="0.5" value="4">
+        </div>
+        <div class="field">
+          <label>Output Quality</label>
+          <select id="qualitySelect">
+            <option value="1.2">Standard (fast)</option>
+            <option value="2" selected>High (recommended)</option>
+            <option value="3">Ultra (slower)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label><input type="checkbox" id="captionToggle" checked style="width:auto;margin-right:8px;">Show extracted text as captions</label>
+      </div>
+
+      <div class="field">
+        <label><input type="checkbox" id="narrateToggle" style="width:auto;margin-right:8px;">Enable voice narration (preview only)</label>
+      </div>
+      <div class="row2" id="voiceOptions" style="display:none;">
+        <div class="field">
+          <label>Voice</label>
+          <select id="voiceSelect"></select>
+        </div>
+        <div class="field">
+          <label>Speed: <span id="rateVal" class="mono" style="color:var(--green)">1.0x</span></label>
+          <input type="range" id="rateRange" min="0.5" max="1.8" step="0.1" value="1">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Background Music (optional, included in export)</label>
+        <input type="file" id="musicInput" accept="audio/*">
+      </div>
+
+      <div class="field">
+        <label>Watermark / Channel Name (optional)</label>
+        <input type="text" id="watermarkInput" placeholder="e.g. IncomeAIHub.com">
+      </div>
+
+      <div class="thumbs" id="thumbs"></div>
+    </div>
+
+    <!-- RIGHT: Preview + Export -->
+    <div class="panel">
+      <h2><span class="num">2</span> Preview & Export</h2>
+
+      <div class="preview-stage ratio-16-9" id="stage">
+        <canvas id="previewCanvas" width="1280" height="720"></canvas>
+        <div class="watermark-tag" id="wmTag" style="display:none;"></div>
+        <div class="caption-overlay" id="captionBox" style="display:none;"></div>
+        <div class="stage-empty" id="stageEmpty">Upload a PDF to see the preview here</div>
+      </div>
+
+      <div class="playback-controls">
+        <button id="playBtn" title="Play preview">▶</button>
+        <button id="pauseBtn" title="Pause">⏸</button>
+        <button id="prevBtn" title="Previous slide">⏮</button>
+        <button id="nextBtn" title="Next slide">⏭</button>
+        <span class="mono" id="slideCounter" style="color:var(--muted);font-size:0.8rem;">0 / 0</span>
+      </div>
+
+      <div class="btns-row" style="margin-top:16px;">
+        <button class="btn btn-primary" id="generateBtn" disabled>⚡ Generate Video</button>
+      </div>
+      <div class="btns-row">
+        <button class="btn btn-secondary" id="downloadBtn" style="display:none;">⬇ Download Video (.webm)</button>
+        <button class="btn btn-danger" id="resetBtn">Reset</button>
+      </div>
+
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar"><div id="progressFill"></div></div>
+        <div class="progress-label">
+          <span id="progressText">Rendering...</span>
+          <span id="progressPct">0%</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="adslot">Advertisement Slot — Google AdSense</div>
+
+  <div class="guide">
+    <div class="guide-box">
+      <h2>📘 इस्तेमाल कैसे करें (Hindi Guide)</h2>
+      <p><b>PDF to Video Generator</b> से आप किसी भी PDF (नोट्स, प्रेजेंटेशन, ई-बुक) को कुछ ही मिनटों में एक वीडियो में बदल सकते हैं — बिना किसी सॉफ्टवेयर के, सीधे ब्राउज़र में।</p>
+
+      <h3>Steps:</h3>
+      <ul>
+        <li>अपनी PDF फाइल अपलोड करें (ड्रैग करें या क्लिक करके चुनें)।</li>
+        <li>Aspect Ratio चुनें — YouTube के लिए 16:9, Shorts/Reels के लिए 9:16।</li>
+        <li>Transition style और हर स्लाइड की duration सेट करें।</li>
+        <li>चाहें तो background music और watermark (channel name) जोड़ें।</li>
+        <li>Preview में देखकर "Generate Video" पर क्लिक करें।</li>
+        <li>Video तैयार होने के बाद "Download Video" से .webm फाइल सेव करें।</li>
+      </ul>
+
+      <h3>Monetization Ideas (कमाई के तरीके):</h3>
+      <ul>
+        <li>Study notes और PDF summaries को YouTube Shorts में बदलकर चैनल ग्रो करें।</li>
+        <li>Clients के लिए PDF reports को branded video summary बनाकर बेचें (₹200–₹1000 प्रति वीडियो)।</li>
+        <li>E-book creators के लिए trailer-style preview videos बनाएं।</li>
+      </ul>
+
+      <div class="guide-note">
+        ⚠️ ध्यान दें: Voice narration सिर्फ प्रीव्यू (सुनने) के लिए है — ब्राउज़र की सीमाओं की वजह से यह फाइनल वीडियो में रिकॉर्ड नहीं होती। अगर आपको वीडियो में आवाज़ चाहिए, तो <b>Background Music</b> ऑप्शन से अपनी खुद की रिकॉर्ड की हुई narration (mp3) अपलोड करें — वो एक्सपोर्ट में शामिल होगी।
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="brand">INCOME<span style="color:var(--green)">AI</span>HUB</div>
+    <div>Free AI-powered tools built for Indian freelancers & creators · No signup required</div>
+  </footer>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+// ---------- State ----------
+const state = {
+  pages: [],          // { img: HTMLImageElement, text: string }
+  ratio: "16:9",
+  transition: "fade",
+  duration: 4,
+  quality: 2,
+  showCaptions: true,
+  narrate: false,
+  voice: null,
+  rate: 1,
+  musicFile: null,
+  watermark: "",
+  currentIndex: 0,
+  playing: false,
+  playTimer: null,
+};
+
+// ---------- Elements ----------
+const dropzone = document.getElementById('dropzone');
+const pdfInput = document.getElementById('pdfInput');
+const fileMeta = document.getElementById('fileMeta');
+const thumbsEl = document.getElementById('thumbs');
+const stage = document.getElementById('stage');
+const canvas = document.getElementById('previewCanvas');
+const ctx = canvas.getContext('2d');
+const stageEmpty = document.getElementById('stageEmpty');
+const captionBox = document.getElementById('captionBox');
+const wmTag = document.getElementById('wmTag');
+const slideCounter = document.getElementById('slideCounter');
+const generateBtn = document.getElementById('generateBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const resetBtn = document.getElementById('resetBtn');
+const progressWrap = document.getElementById('progressWrap');
+const progressFill = document.getElementById('progressFill');
+const progressText = document.getElementById('progressText');
+const progressPct = document.getElementById('progressPct');
+const toast = document.getElementById('toast');
+
+function showToast(msg, isError=false){
+  toast.textContent = msg;
+  toast.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(()=> toast.classList.remove('show'), 3200);
+}
+
+// ---------- Dropzone ----------
+dropzone.addEventListener('click', ()=> pdfInput.click());
+['dragenter','dragover'].forEach(evt=>{
+  dropzone.addEventListener(evt, e=>{ e.preventDefault(); dropzone.classList.add('drag'); });
+});
+['dragleave','drop'].forEach(evt=>{
+  dropzone.addEventListener(evt, e=>{ e.preventDefault(); dropzone.classList.remove('drag'); });
+});
+dropzone.addEventListener('drop', e=>{
+  const file = e.dataTransfer.files[0];
+  if(file && file.type === 'application/pdf') handlePdf(file);
+  else showToast('Please drop a valid PDF file', true);
+});
+pdfInput.addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(file) handlePdf(file);
+});
+
+// ---------- Ratio / Transition chips ----------
+document.getElementById('ratioChips').addEventListener('click', e=>{
+  const chip = e.target.closest('.chip'); if(!chip) return;
+  document.querySelectorAll('#ratioChips .chip').forEach(c=>c.classList.remove('active'));
+  chip.classList.add('active');
+  state.ratio = chip.dataset.ratio;
+  updateStageRatio();
+  renderCurrentSlide();
+});
+document.getElementById('transChips').addEventListener('click', e=>{
+  const chip = e.target.closest('.chip'); if(!chip) return;
+  document.querySelectorAll('#transChips .chip').forEach(c=>c.classList.remove('active'));
+  chip.classList.add('active');
+  state.transition = chip.dataset.trans;
+});
+
+function updateStageRatio(){
+  stage.classList.remove('ratio-9-16','ratio-1-1');
+  if(state.ratio === '9:16'){ stage.classList.add('ratio-9-16'); canvas.width=720; canvas.height=1280; }
+  else if(state.ratio === '1:1'){ stage.classList.add('ratio-1-1'); canvas.width=1080; canvas.height=1080; }
+  else { canvas.width=1280; canvas.height=720; }
+}
+
+// ---------- Range inputs ----------
+const durRange = document.getElementById('durRange');
+durRange.addEventListener('input', ()=>{
+  state.duration = parseFloat(durRange.value);
+  document.getElementById('durVal').textContent = state.duration + 's';
+});
+document.getElementById('qualitySelect').addEventListener('change', e=>{
+  state.quality = parseFloat(e.target.value);
+});
+document.getElementById('captionToggle').addEventListener('change', e=>{
+  state.showCaptions = e.target.checked;
+  captionBox.style.display = (state.showCaptions && state.pages.length) ? 'block' : 'none';
+  renderCurrentSlide();
+});
+const narrateToggle = document.getElementById('narrateToggle');
+const voiceOptions = document.getElementById('voiceOptions');
+narrateToggle.addEventListener('change', e=>{
+  state.narrate = e.target.checked;
+  voiceOptions.style.display = state.narrate ? 'grid' : 'none';
+});
+const rateRange = document.getElementById('rateRange');
+rateRange.addEventListener('input', ()=>{
+  state.rate = parseFloat(rateRange.value);
+  document.getElementById('rateVal').textContent = state.rate.toFixed(1) + 'x';
+});
+document.getElementById('voiceSelect').addEventListener('change', e=>{
+  const voices = speechSynthesis.getVoices();
+  state.voice = voices.find(v=>v.name === e.target.value) || null;
+});
+function loadVoices(){
+  const voices = speechSynthesis.getVoices();
+  const sel = document.getElementById('voiceSelect');
+  sel.innerHTML = '';
+  voices.forEach(v=>{
+    const opt = document.createElement('option');
+    opt.value = v.name; opt.textContent = v.name + ' (' + v.lang + ')';
+    sel.appendChild(opt);
+  });
+  if(voices.length) state.voice = voices[0];
+}
+speechSynthesis.onvoiceschanged = loadVoices;
+loadVoices();
+
+document.getElementById('musicInput').addEventListener('change', e=>{
+  state.musicFile = e.target.files[0] || null;
+});
+document.getElementById('watermarkInput').addEventListener('input', e=>{
+  state.watermark = e.target.value.trim();
+  wmTag.textContent = state.watermark;
+  wmTag.style.display = state.watermark ? 'block' : 'none';
+});
+
+// ---------- PDF handling ----------
+async function handlePdf(file){
+  try{
+    showToast('Reading PDF...');
+    state.pages = [];
+    thumbsEl.innerHTML = '';
+    fileMeta.classList.remove('show');
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const numPages = pdf.numPages;
+
+    for(let i=1; i<=numPages; i++){
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: 2 });
+      const off = document.createElement('canvas');
+      off.width = viewport.width; off.height = viewport.height;
+      const offCtx = off.getContext('2d');
+      await page.render({ canvasContext: offCtx, viewport }).promise;
+
+      const textContent = await page.getTextContent();
+      const text = textContent.items.map(it=>it.str).join(' ').replace(/\s+/g,' ').trim();
+
+      const img = new Image();
+      img.src = off.toDataURL('image/jpeg', 0.92);
+      await new Promise(res=> img.onload = res);
+
+      state.pages.push({ img, text });
+
+      const thumb = document.createElement('img');
+      thumb.src = img.src;
+      thumb.dataset.index = i-1;
+      thumb.addEventListener('click', ()=> goToSlide(i-1));
+      thumbsEl.appendChild(thumb);
+    }
+
+    fileMeta.innerHTML = `<b>${escapeHtml(file.name)}</b> — ${numPages} page${numPages>1?'s':''} loaded successfully.`;
+    fileMeta.classList.add('show');
+
+    state.currentIndex = 0;
+    stageEmpty.style.display = 'none';
+    generateBtn.disabled = false;
+    downloadBtn.style.display = 'none';
+    updateStageRatio();
+    renderCurrentSlide();
+    showToast(numPages + ' pages loaded ✔');
+  }catch(err){
+    console.error(err);
+    showToast('Failed to read PDF: ' + err.message, true);
+  }
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ---------- Preview rendering ----------
+function drawContain(image, cw, ch){
+  const iw = image.width, ih = image.height;
+  const scale = Math.min(cw/iw, ch/ih);
+  const w = iw*scale, h = ih*scale;
+  const x = (cw-w)/2, y = (ch-h)/2;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,cw,ch);
+  ctx.drawImage(image, x, y, w, h);
+}
+
+function renderCurrentSlide(){
+  if(!state.pages.length) return;
+  const p = state.pages[state.currentIndex];
+  drawContain(p.img, canvas.width, canvas.height);
+  captionBox.style.display = state.showCaptions ? 'block' : 'none';
+  captionBox.textContent = state.showCaptions ? truncateWords(p.text, 40) : '';
+  slideCounter.textContent = (state.currentIndex+1) + ' / ' + state.pages.length;
+  document.querySelectorAll('.thumbs img').forEach((el,i)=> el.classList.toggle('active', i===state.currentIndex));
+}
+function truncateWords(str, n){
+  const words = str.split(' ');
+  return words.length > n ? words.slice(0,n).join(' ') + '…' : str;
+}
+function goToSlide(i){
+  state.currentIndex = Math.max(0, Math.min(state.pages.length-1, i));
+  renderCurrentSlide();
+}
+
+document.getElementById('prevBtn').addEventListener('click', ()=> goToSlide(state.currentIndex-1));
+document.getElementById('nextBtn').addEventListener('click', ()=> goToSlide(state.currentIndex+1));
+document.getElementById('playBtn').addEventListener('click', startPreviewPlayback);
+document.getElementById('pauseBtn').addEventListener('click', stopPreviewPlayback);
+
+function startPreviewPlayback(){
+  if(!state.pages.length || state.playing) return;
+  state.playing = true;
+  const advance = ()=>{
+    if(!state.playing) return;
+    if(state.narrate && state.pages[state.currentIndex].text){
+      speakText(state.pages[state.currentIndex].text, ()=>{
+        if(state.playing){
+          if(state.currentIndex < state.pages.length-1){ goToSlide(state.currentIndex+1); advance(); }
+          else stopPreviewPlayback();
+        }
+      });
+    } else {
+      state.playTimer = setTimeout(()=>{
+        if(state.currentIndex < state.pages.length-1){ goToSlide(state.currentIndex+1); advance(); }
+        else stopPreviewPlayback();
+      }, state.duration*1000);
+    }
+  };
+  advance();
+}
+function stopPreviewPlayback(){
+  state.playing = false;
+  clearTimeout(state.playTimer);
+  speechSynthesis.cancel();
+}
+function speakText(text, onEnd){
+  speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  if(state.voice) utter.voice = state.voice;
+  utter.rate = state.rate;
+  utter.onend = onEnd;
+  utter.onerror = onEnd;
+  speechSynthesis.speak(utter);
+}
+
+// ---------- Reset ----------
+resetBtn.addEventListener('click', ()=>{
+  state.pages = [];
+  thumbsEl.innerHTML = '';
+  fileMeta.classList.remove('show');
+  stageEmpty.style.display = 'flex';
+  generateBtn.disabled = true;
+  downloadBtn.style.display = 'none';
+  progressWrap.classList.remove('show');
+  stopPreviewPlayback();
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  captionBox.style.display = 'none';
+  pdfInput.value = '';
+  showToast('Reset done');
+});
+
+// ---------- Video generation ----------
+let recordedChunks = [];
+let mediaRecorder = null;
+let finalBlobUrl = null;
+
+generateBtn.addEventListener('click', generateVideo);
+
+async function generateVideo(){
+  if(!state.pages.length) return;
+  stopPreviewPlayback();
+  generateBtn.disabled = true;
+  downloadBtn.style.display = 'none';
+  progressWrap.classList.add('show');
+  progressFill.style.width = '0%';
+  progressText.textContent = 'Preparing render...';
+  progressPct.textContent = '0%';
+
+  const fps = 30;
+  const stream = canvas.captureStream(fps);
+
+  // Optional background music mixed in via Web Audio
+  let audioCtx, destination, musicSourceNode, musicEl;
+  if(state.musicFile){
+    try{
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      destination = audioCtx.createMediaStreamDestination();
+      musicEl = new Audio(URL.createObjectURL(state.musicFile));
+      musicEl.loop = true;
+      musicEl.crossOrigin = 'anonymous';
+      musicSourceNode = audioCtx.createMediaElementSource(musicEl);
+      const gain = audioCtx.createGain();
+      gain.gain.value = 0.7;
+      musicSourceNode.connect(gain).connect(destination);
+      destination.stream.getAudioTracks().forEach(t=> stream.addTrack(t));
+    }catch(err){
+      console.warn('Audio mix failed, continuing without music', err);
+    }
+  }
+
+  const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+    ? 'video/webm;codecs=vp9,opus'
+    : 'video/webm';
+
+  recordedChunks = [];
+  mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 6_000_000 });
+  mediaRecorder.ondataavailable = e=>{ if(e.data.size>0) recordedChunks.push(e.data); };
+
+  const totalSlides = state.pages.length;
+  const perSlideMs = state.duration*1000;
+  const totalMs = totalSlides*perSlideMs;
+
+  const donePromise = new Promise(resolve=>{
+    mediaRecorder.onstop = resolve;
+  });
+
+  mediaRecorder.start();
+  if(musicEl){ try{ await musicEl.play(); }catch(e){} }
+
+  const startTime = performance.now();
+
+  await new Promise(resolveAll=>{
+    let slideIndex = 0;
+
+    function renderSlideAnimated(index){
+      return new Promise(res=>{
+        const p = state.pages[index];
+        const stepStart = performance.now();
+        function frame(now){
+          const elapsed = now - stepStart;
+          const t = Math.min(1, elapsed/perSlideMs);
+          drawTransitionFrame(p, t);
+          const overallElapsed = now - startTime;
+          const pct = Math.min(100, Math.round((overallElapsed/totalMs)*100));
+          progressFill.style.width = pct + '%';
+          progressPct.textContent = pct + '%';
+          progressText.textContent = 'Rendering slide ' + (index+1) + ' / ' + totalSlides;
+          if(t < 1){ requestAnimationFrame(frame); }
+          else res();
+        }
+        requestAnimationFrame(frame);
+      });
+    }
+
+    (async ()=>{
+      for(slideIndex=0; slideIndex<totalSlides; slideIndex++){
+        await renderSlideAnimated(slideIndex);
+      }
+      resolveAll();
+    })();
+  });
+
+  mediaRecorder.stop();
+  if(musicEl){ musicEl.pause(); }
+  await donePromise;
+
+  const blob = new Blob(recordedChunks, { type: 'video/webm' });
+  finalBlobUrl = URL.createObjectURL(blob);
+
+  progressText.textContent = 'Done!';
+  progressPct.textContent = '100%';
+  progressFill.style.width = '100%';
+  showToast('Video generated successfully ✔');
+
+  downloadBtn.style.display = 'inline-flex';
+  downloadBtn.onclick = ()=>{
+    const a = document.createElement('a');
+    a.href = finalBlobUrl;
+    a.download = 'pdf-to-video-' + Date.now() + '.webm';
+    a.click();
+  };
+
+  generateBtn.disabled = false;
+}
+
+function drawTransitionFrame(page, t){
+  const cw = canvas.width, ch = canvas.height;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,cw,ch);
+
+  if(state.transition === 'zoom'){
+    const scale = 1 + 0.08*t;
+    ctx.save();
+    ctx.translate(cw/2, ch/2);
+    ctx.scale(scale, scale);
+    ctx.translate(-cw/2, -ch/2);
+    drawContain(page.img, cw, ch);
+    ctx.restore();
+  } else if(state.transition === 'fade'){
+    const fadeIn = Math.min(1, t*6);
+    ctx.globalAlpha = fadeIn;
+    drawContain(page.img, cw, ch);
+    ctx.globalAlpha = 1;
+  } else if(state.transition === 'slide'){
+    const slideT = Math.min(1, t*6);
+    const offset = (1-slideT)*cw*0.15;
+    ctx.save();
+    ctx.translate(offset, 0);
+    drawContain(page.img, cw, ch);
+    ctx.restore();
+  } else {
+    drawContain(page.img, cw, ch);
+  }
+
+  if(state.showCaptions && page.text){
+    const text = truncateWords(page.text, 32);
+    const boxH = Math.round(ch*0.16);
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0, ch-boxH, cw, boxH);
+    ctx.fillStyle = '#fff';
+    ctx.font = Math.round(ch*0.032) + 'px Rajdhani, sans-serif';
+    ctx.textAlign = 'center';
+    wrapText(text, cw/2, ch-boxH+Math.round(boxH*0.35), cw*0.9, Math.round(ch*0.038));
+  }
+
+  if(state.watermark){
+    ctx.font = Math.round(ch*0.024) + 'px Orbitron, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.textAlign = 'right';
+    ctx.fillText(state.watermark, cw-20, 34);
+  }
+}
+
+function wrapText(text, x, y, maxWidth, lineHeight){
+  const words = text.split(' ');
+  let line = '', lines = [];
+  for(let n=0; n<words.length; n++){
+    const testLine = line + words[n] + ' ';
+    if(ctx.measureText(testLine).width > maxWidth && n > 0){
+      lines.push(line); line = words[n] + ' ';
+    } else { line = testLine; }
+  }
+  lines.push(line);
+  lines = lines.slice(0,2);
+  lines.forEach((l,i)=> ctx.fillText(l.trim(), x, y + i*lineHeight));
+}
+
+updateStageRatio();
+</script>
+
+</body>
+</html>
